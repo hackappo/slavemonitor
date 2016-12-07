@@ -1,0 +1,8 @@
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\bin\Release\slaveMonitor.exe.config
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\bin\Release\slaveMonitor.exe
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\bin\Release\slaveMonitor.pdb
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\obj\Release\slaveMonitor.SlaveMonitor.resources
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\obj\Release\slaveMonitor.Properties.Resources.resources
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\obj\Release\slaveMonitor.csproj.GenerateResource.Cache
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\obj\Release\slaveMonitor.exe
+c:\users\hackappo\documents\visual studio 2015\Projects\slaveMonitor\slaveMonitor\obj\Release\slaveMonitor.pdb
