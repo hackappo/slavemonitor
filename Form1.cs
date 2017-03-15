@@ -4,8 +4,14 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Automation;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace slaveMonitor
 {
@@ -24,6 +30,13 @@ namespace slaveMonitor
         const string SlaveMonitorProcessName = "slaveMonitor";
         const string Command = "javaws";
         const string ScriptName = @"-Xnosplash .\cloudbees-agent.jnlp";
+
+        private DirectoryInfo LogsFolder;
+        private string LogFile;
+
+        private int maxLogItems = 20;
+        private string Timestamp => DateTime.Now.ToLongTimeString().Replace(':', '_').Split()[0];
+
         private TimeSpan pollInverval = TimeSpan.FromMinutes(10);
         private TimeSpan inBetweenDialogsInterval = TimeSpan.FromSeconds(5);
         private Thread workerThread;
@@ -34,6 +47,9 @@ namespace slaveMonitor
             InitializeComponent();
             Show();
             KillPrevSlaveMonitor();
+
+            SetupLogsFolder();
+            TakeScreenshot();
 
             workerThread = new Thread(new System.Threading.ThreadStart(Loop));
             workerThread.Start();
@@ -58,7 +74,6 @@ namespace slaveMonitor
             {
                 return false;
             }
-
         }
 
         public void LaunchJenkinsApplet()
@@ -70,6 +85,77 @@ namespace slaveMonitor
             Debug.WriteLine("Running command: {0} {1}", processInfo.FileName, processInfo.Arguments);
             var p = Process.Start(processInfo);
             Debug.WriteLine(p.HandleCount);
+        }
+
+        public void SetupLogsFolder()
+        {
+            if (!Directory.Exists(SlaveMonitorProcessName))
+            {
+                LogsFolder = Directory.CreateDirectory(SlaveMonitorProcessName);
+            }
+            else
+            {
+                LogsFolder = new DirectoryInfo(SlaveMonitorProcessName);
+            }
+
+            LogFile = Path.Combine(LogsFolder.FullName, $"{Timestamp}_Log.txt");
+
+            Log("Starting new session");
+        }
+
+        public void EnableForceAutoLogon()
+        {
+            Log("Writing registry keys to ensure AutoLogon");
+            try
+            {
+                Registry.SetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
+                    "AutoAdminLogon", 1, RegistryValueKind.DWord);
+                Registry.SetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
+                    "ForceAutoLogon", 1, RegistryValueKind.DWord);
+                Registry.SetValue(
+                    @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoLogonChecked", "",
+                    "1", RegistryValueKind.String);
+            }
+            catch (Exception e)
+            {
+                Log($"Unnable to apply registry changes: {e.Data} - {e.InnerException}");
+            }
+        }
+
+
+        public void TakeScreenshot()
+        {
+            //Check the maxLogItems value, delete oldest screenshot if exceeded
+            var logItems = LogsFolder.GetFileSystemInfos();
+
+            if (logItems.Length >= maxLogItems)
+            {
+                var oldFiles = logItems.OrderBy((file) => file.CreationTime).ToList();
+                var index = 0;
+
+                while (LogsFolder.GetFileSystemInfos().Length >= maxLogItems - 1)
+                {
+                    File.Delete(oldFiles[index].FullName);
+                    index++;
+                    Log("Deleting old log file");
+                }
+            }
+
+            Rectangle bounds = Screen.GetBounds(Point.Empty);
+            using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height))
+            {
+                using (Graphics g = Graphics.FromImage(bitmap))
+                {
+                    g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
+                }
+                bitmap.Save(Path.Combine(LogsFolder.FullName, $"winSession_{Timestamp}.png"), ImageFormat.Png);
+                Log("Taking snapshot");
+            }
+        }
+
+        private void Log(string text)
+        {
+            File.AppendAllLines(LogFile, new string[] { $"{Timestamp} - {text}"});
         }
 
         public void KillAgent()
@@ -125,29 +211,34 @@ namespace slaveMonitor
             {
                 try
                 {
+                    EnableForceAutoLogon();
+
                     if (!IsHostProcessAlive())
                     {
-                        Debug.WriteLine("Process not found, running applet");
+                        Log("Process not found, running applet");
                         LaunchJenkinsApplet();
                         System.Threading.Thread.Sleep(inBetweenDialogsInterval);
                         var executionError = CheckErrors();
                         if (executionError != ErrorType.NoError)
                         {
-                            Debug.WriteLine($"ErrorType {executionError}: Human intervention required!!");
+                            Log($"ErrorType {executionError}: Human intervention required!!");
                             if(executionError != ErrorType.SlaveAgentNotLaunched)
                                 KillAgent();
                             break;
                         }
                         else
                         {
-                            label1.Text = "He's awake!!!";
+                            var success = "He's awake!!!";
+                            Log(success);
+                            label1.Text = success;
                         }
                     }
 
                     System.Threading.Thread.Sleep(pollInverval);
                 }
-                catch (ApplicationException)
+                catch (ApplicationException e)
                 {
+                    Log($"Something went wrong!! : {e.Data} - {e.InnerException}");
                     throw;
                 }
             }
