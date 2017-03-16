@@ -9,6 +9,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.ServiceProcess;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -30,6 +31,7 @@ namespace slaveMonitor
         const string SlaveMonitorProcessName = "slaveMonitor";
         const string Command = "javaws";
         const string ScriptName = @"-Xnosplash .\cloudbees-agent.jnlp";
+        const string InteractiveServiceName = "UI0Detect";
 
         private DirectoryInfo LogsFolder;
         private string LogFile;
@@ -75,6 +77,43 @@ namespace slaveMonitor
                 return false;
             }
         }
+
+        public bool StartInteractiveServicesDetection(bool forceStart = false)
+        {
+            var isRunning = false;
+
+            try
+            {
+                var sc = new ServiceController(InteractiveServiceName);
+
+                if (!forceStart)
+                {
+                    isRunning = sc.Status == ServiceControllerStatus.Running;
+                }
+                else
+                {
+                    if (sc.Status != ServiceControllerStatus.Running)
+                    {
+                        Log($"Service '{InteractiveServiceName}' is not running!! Attempting to start...");
+                        sc.Start();
+                        sc.WaitForStatus(ServiceControllerStatus.Running);
+                        Log($"Service '{InteractiveServiceName}' has started");
+                        isRunning = true;
+                    }
+                    else
+                    {
+                        Log($"Service '{InteractiveServiceName}' is running");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log($"Something went wrong while attempting to manage '{InteractiveServiceName}' service: {e.Data} - {e.InnerException}");
+            }
+
+            return isRunning;
+        }
+
 
         public void LaunchJenkinsApplet()
         {
@@ -233,6 +272,8 @@ namespace slaveMonitor
                             label1.Text = success;
                         }
                     }
+
+                    StartInteractiveServicesDetection(true);
 
                     System.Threading.Thread.Sleep(pollInverval);
                 }
