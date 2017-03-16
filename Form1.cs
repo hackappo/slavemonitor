@@ -52,6 +52,7 @@ namespace slaveMonitor
 
             SetupLogsFolder();
             TakeScreenshot();
+            IsInteractiveServicesRunning(true);
 
             workerThread = new Thread(new System.Threading.ThreadStart(Loop));
             workerThread.Start();
@@ -78,7 +79,7 @@ namespace slaveMonitor
             }
         }
 
-        public bool StartInteractiveServicesDetection(bool forceStart = false)
+        public bool IsInteractiveServicesRunning(bool forceStart = false)
         {
             var isRunning = false;
 
@@ -88,7 +89,7 @@ namespace slaveMonitor
 
                 if (!forceStart)
                 {
-                    isRunning = sc.Status == ServiceControllerStatus.Running;
+                    isRunning = (sc.Status == ServiceControllerStatus.Running);
                 }
                 else
                 {
@@ -102,7 +103,7 @@ namespace slaveMonitor
                     }
                     else
                     {
-                        Log($"Service '{InteractiveServiceName}' is running");
+                        Log($"Service '{InteractiveServiceName}' is already running");
                     }
                 }
             }
@@ -273,7 +274,7 @@ namespace slaveMonitor
                         }
                     }
 
-                    StartInteractiveServicesDetection(true);
+                    Log($"Interactive Services Detection ({InteractiveServiceName}) service is {(IsInteractiveServicesRunning()? string.Empty : "NOT")} running");
 
                     System.Threading.Thread.Sleep(pollInverval);
                 }
