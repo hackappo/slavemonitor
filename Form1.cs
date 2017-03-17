@@ -52,6 +52,7 @@ namespace slaveMonitor
 
             SetupLogsFolder();
             TakeScreenshot();
+            EnableForceAutoLogon();
             IsInteractiveServicesRunning(true);
 
             workerThread = new Thread(new System.Threading.ThreadStart(Loop));
@@ -251,8 +252,6 @@ namespace slaveMonitor
             {
                 try
                 {
-                    EnableForceAutoLogon();
-
                     if (!IsHostProcessAlive())
                     {
                         Log("Process not found, running applet");
@@ -274,13 +273,11 @@ namespace slaveMonitor
                         }
                     }
 
-                    Log($"Interactive Services Detection ({InteractiveServiceName}) service is {(IsInteractiveServicesRunning()? string.Empty : "NOT")} running");
-
                     System.Threading.Thread.Sleep(pollInverval);
                 }
                 catch (ApplicationException e)
                 {
-                    Log($"Something went wrong!! : {e.Data} - {e.InnerException}");
+                    Log($"Something went wrong!! : {e.Data} - {e.Message}");
                     throw;
                 }
             }
